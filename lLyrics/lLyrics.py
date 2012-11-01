@@ -33,6 +33,10 @@ import MetrolyricsParser
 import LetrasTerraParser
 import LyrdbParser
 import SogouParser
+import chardet
+import glob
+from lrcParser import lrcParser
+import engine
 
 from Config import Config
 from Config import ConfigDialog
@@ -95,53 +99,57 @@ STOCK_IMAGE = "stock-llyrics-button"
 class lLyrics(GObject.Object, Peas.Activatable):
     __gtype_name__ = 'lLyrics'
     object = GObject.property(type=GObject.Object)
-    
-    
-    
+
+
+
     def __init__(self):
         GObject.Object.__init__(self)
         GObject.threads_init()
         Gdk.threads_init()
-        
-        
+
+
 
     def do_activate(self):
         # Get references for the Shell, the Shell-player and the UIManager
         self.shell = self.object
         self.player = self.shell.props.shell_player
         self.uim = self.shell.props.ui_manager
-        
+
         # Create dictionary which assigns sources to their corresponding modules
         self.dict = dict({"Lyricwiki.org": LyricwikiParser, "Letras.terra.com.br": LetrasTerraParser,
                          "Metrolyrics.com": MetrolyricsParser, "Chartlyrics.com": ChartlyricsParser,
                          "Lyrdb.com": LyrdbParser, "Sogou.com": SogouParser})
-        
+
         # Get the user preferences
         config = Config()
         self.settings = config.get_settings()
         self.get_user_preferences(self.settings, None, config)
         # Watch for setting changes
         self.skc_id = self.settings.connect('changed', self.get_user_preferences, config)
-        
+
         # Initialize the UI
         self.init_sidebar()
         self.init_menu()
-        
+
         # Create flag, used to pop out sidebar on initial start of playback
         self.first = True
-        
+
         # Event flag indicates whether the user is currently editing lyrics
         self.edit_event = threading.Event()
         self.edit_event.set()
-        
+
         self.current_source = None
-        
+        self.tags = None
+        self.current_tag = None
+
         # Search lyrics if already playing (this will be the case if user reactivates plugin during playback)
         if self.player.props.playing:
                 self.search_lyrics(self.player, self.player.get_playing_entry())
         # Search lyrics everytime the song changes 
         self.psc_id = self.player.connect('playing-song-changed', self.search_lyrics)
-        
+        # Connect to elapsed-changed signal to handle synchronized lyrics
+        self.pec_id = self.player.connect('elapsed-changed', self.elapsed_changed)
+
         # Hide the lLyrics UI elements when in Small Display mode
         # Since Rhythmbox 2.97 there is no longer a SmallDisplayMode, but for now we keep it for compatibility 
         try:
@@ -149,26 +157,27 @@ class lLyrics(GObject.Object, Peas.Activatable):
             self.tb_conn_id = small_display_toggle.connect('toggled', self.hide_if_active)
         except:
             pass
-                
+
         print "activated plugin lLyrics"
-        
-        
+
+
 
     def do_deactivate(self):    
         if self.visible:
             self.shell.remove_widget (self.vbox, RB.ShellUILocation.RIGHT_SIDEBAR)
-        
+
         self.settings.disconnect(self.skc_id)
         self.player.disconnect(self.psc_id)
+        self.player.disconnect(self.pec_id)
         try:
             self.uim.get_widget("/MenuBar/ViewMenu/ViewSmallDisplayMenu").disconnect(self.tb_conn_id)
         except:
             pass
-        
+
         self.uim.remove_ui (self.ui_id)
         self.uim.remove_action_group (self.action_group)
         self.uim.remove_action_group(self.toggle_action_group)
-        
+
         self.uim = None
         self.vbox = None
         self.textbuffer = None
@@ -193,27 +202,27 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.lyrics_before_edit = None
         self.edit_event = None
         self.path_before_edit = None
-        
+
         self.shell = None
 
         print "deactivated plugin lLyrics"
+
         
-        
-    
+
     def get_user_preferences(self, settings, key, config):
         self.sources = config.get_lyrics_sources()
         self.cache = config.get_cache_lyrics()
         self.lyrics_folder = config.get_lyrics_folder()
 
-        
-           
+
+
     def init_menu(self):
         # Create an icon for the toolbar button
         icon_factory = Gtk.IconFactory()
         pxbf = GdkPixbuf.Pixbuf.new_from_file(os.path.dirname(__file__) + "/lLyrics-icon.png")
         icon_factory.add(STOCK_IMAGE, Gtk.IconSet.new_from_pixbuf(pxbf))
         icon_factory.add_default()
-        
+
         # Action to toggle the visibility of the sidebar,
         # used by the toolbar button and the ViewMenu entry.
         self.toggle_action_group = Gtk.ActionGroup(name='lLyricsPluginToggleActions')
@@ -221,16 +230,16 @@ class lLyrics(GObject.Object, Peas.Activatable):
                         None, _("Display lyrics for the current playing song"),
                         self.toggle_visibility, False)
         self.toggle_action_group.add_toggle_actions([toggle_action])
-        
+
         # Actions used by the lyrics menu
         self.action_group = Gtk.ActionGroup(name='lLyricsPluginActions')
-        
+
         menu_action = Gtk.Action("lLyricsMenuAction", _("Lyrics"), None, None)
         self.action_group.add_action(menu_action)
-        
+
         source_action = Gtk.Action("ScanSourceAction", _("Source"), None, None)
         self.action_group.add_action(source_action)
-        
+
         scan_lyricwiki_action = ("Lyricwiki.org", None, "Lyricwiki.org", None, None)
         scan_terra_action = ("Letras.terra.com.br", None, "Letras.terra.com.br", None, None)
         scan_metrolyrics_action = ("Metrolyrics.com", None, "Metrolyrics.com", None, None)
@@ -239,16 +248,16 @@ class lLyrics(GObject.Object, Peas.Activatable):
         scan_sogou_action = ("Sogou.com", None, "Sogou.com", None, None)
         scan_cache_action = ("From cache file", None, _("From cache file"), None, None)
         select_nothing_action = ("SelectNothing", None, "SelectNothing", None, None)
-        
+
         self.action_group.add_radio_actions([scan_lyricwiki_action, scan_terra_action, scan_metrolyrics_action,
                                              scan_chartlyrics_action, scan_lyrdb_action, scan_sogou_action, scan_cache_action, select_nothing_action],
                                              -1, self.scan_source_action_callback, None)
-        
+
         # This is a quite ugly hack. I couldn't find out how to unselect all radio actions,
         # so I use an invisible action for that
         self.action_group.get_action("SelectNothing").set_visible(False)
         self.action_group.get_action("SelectNothing").set_active(True)
-        
+
         scan_next_action = ("ScanNextAction", None, _("Scan next source"),
                             None, _("Scan next lyrics source"), self.scan_next_action_callback)
         scan_all_action = ("ScanAllAction", None, _("Scan all sources"),
@@ -266,29 +275,29 @@ class lLyrics(GObject.Object, Peas.Activatable):
                         _("Delete current lyrics"), self.clear_action_callback)
         edit_action = ("EditAction", None, _("Edit lyrics"), None,
                        _("Edit current lyrics"), self.edit_action_callback)
-        
+
         self.action_group.add_actions([scan_next_action, scan_all_action, search_online_action, search_meanings_action,
                                        instrumental_action, save_to_cache_action, clear_action, edit_action])
-        
+
         # Make action group insensitive as long as there are no lyrics displayed
         self.action_group.set_sensitive(False)
-        
+
         # Insert the UI
         self.uim.insert_action_group (self.toggle_action_group, 0)
         self.uim.insert_action_group (self.action_group, 0)
         self.ui_id = self.uim.add_ui_from_string(llyrics_ui)
         self.uim.ensure_update()
-        
-        
-       
+
+
+
     def init_sidebar(self):
         self.vbox = Gtk.VBox()
-                
+
         label = Gtk.Label(_("Lyrics"))
         label.set_use_markup(True)
         label.set_padding(3, 11)
         label.set_alignment(0, 0)
-        
+
         # create a TextView for displaying lyrics
         self.textview = Gtk.TextView()
         self.textview.set_editable(False)
@@ -311,7 +320,8 @@ class lLyrics(GObject.Object, Peas.Activatable):
         # tag to style headers bold and underlined
         self.tag = self.textbuffer.create_tag(None, underline=Pango.Underline.SINGLE, weight=600, 
                                               pixels_above_lines=10, pixels_below_lines=20)
-        
+        # tag to highlight synchronized lyrics
+        self.sync_tag = self.textbuffer.create_tag(None, weight=600)
         # create save and cancel buttons for edited lyrics
         save_button = Gtk.Button.new_with_label(_("Save"))
         save_button.connect("clicked", self.save_button_callback)
@@ -347,7 +357,14 @@ class lLyrics(GObject.Object, Peas.Activatable):
             
             
         
-    def search_lyrics(self, player, entry):            
+    def search_lyrics(self, player, entry):
+        # clear sync stuff
+        if self.tags is not None:
+            self.tags = None
+            self.current_tag = None
+            start, end = self.textbuffer.get_bounds()
+            self.textbuffer.remove_tag(self.sync_tag, start, end)
+
         if entry is None:
             return
         
@@ -363,6 +380,7 @@ class lLyrics(GObject.Object, Peas.Activatable):
    
         (self.clean_artist, self.clean_title) = self.clean_song_data(self.artist, self.title)
         self.path = self.build_cache_path(self.clean_artist, self.clean_title)
+        # self.lrc_file = self.build_cache_path(self.clean_artist, self.clean_title)
         
         self.scan_all_sources(self.clean_artist, self.clean_title, True)
         
@@ -370,8 +388,8 @@ class lLyrics(GObject.Object, Peas.Activatable):
 
     def clean_song_data(self, artist, title):
         # convert to lowercase
-        artist = artist.lower()
-        title = title.lower()
+        # artist = artist.lower()
+        # title = title.lower()
     
         # replace ampersands and the like
         for exp in LYRIC_ARTIST_REPLACE:
@@ -381,7 +399,7 @@ class lLyrics(GObject.Object, Peas.Activatable):
     
         # strip things like "(live at Somewhere)", "(acoustic)", etc
         for exp in LYRIC_TITLE_STRIP:
-            title = re.sub (exp, '', title)
+            title = re.sub (exp, '', title, flags = re.IGNORECASE)
     
         # compress spaces
         title = title.strip()
@@ -392,11 +410,11 @@ class lLyrics(GObject.Object, Peas.Activatable):
     
     
     def build_cache_path(self, artist, title):
-        artist_folder = os.path.join(self.lyrics_folder, artist[:128])
-        if not os.path.exists (artist_folder):
-            os.mkdir (artist_folder)
+        # artist_folder = os.path.join(self.lyrics_folder, artist[:128])
+        # if not os.path.exists (artist_folder):
+        #     os.mkdir (artist_folder)
     
-        return os.path.join(artist_folder, title[:128] + '.lyric')
+        return os.path.join(self.lyrics_folder, artist + ' - ' + title[:128] + '.lrc')
     
     
     
@@ -491,6 +509,8 @@ class lLyrics(GObject.Object, Peas.Activatable):
         # Conserve lyrics in order to restore original lyrics when editing is canceled 
         start, end = self.textbuffer.get_bounds()
         self.lyrics_before_edit = self.textbuffer.get_text(start, end, False)
+        # remove sync tag
+        self.textbuffer.remove_tag(self.sync_tag, start, end)
         # Conserve cache path in order to be able to correctly save edited lyrics although
         # the playing song might have changed during editing.
         self.path_before_edit = self.path
@@ -573,7 +593,11 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.action_group.set_sensitive(False)
              
         if source == "From cache file":
-            lyrics = self.get_lyrics_from_cache(self.path)
+            # lyrics = self.get_lyrics_from_cache2(self.path)
+            for lrc_file in glob.glob(os.path.join(self.lyrics_folder, '*.[lL][rR][cC]')):
+                filename = os.path.basename(lrc_file)
+                if artist.lower() in filename.lower() and title.lower() in filename.lower():
+                    lyrics = self.get_lyrics_from_cache2(lrc_file)
         else:   
             lyrics = self.get_lyrics_from_source(source, artist, title)
             
@@ -601,11 +625,17 @@ class lLyrics(GObject.Object, Peas.Activatable):
     
     def _scan_all_sources_thread(self, artist, title, cache):
         self.action_group.set_sensitive(False)
+
+        lyrics = ""
         
         if cache:
-            lyrics = self.get_lyrics_from_cache(self.path)
-        else:
-            lyrics = ""
+            # lyrics = self.get_lyrics_from_cache(self.path)
+            for lrc_file in glob.glob(os.path.join(self.lyrics_folder, '*.lrc')):
+                filename = os.path.basename(lrc_file)
+                if artist.lower() in filename.lower() and title.lower() in filename.lower():
+                    lyrics = self.get_lyrics_from_cache2(lrc_file)
+        # else:
+        #     lyrics = ""
         
         if lyrics == "":
             i = 0
@@ -686,7 +716,24 @@ class lLyrics(GObject.Object, Peas.Activatable):
             
         return lyrics    
     
-    
+    def get_lyrics_from_cache2(self, filename):
+        # try to load lyrics from cache
+        if os.path.exists (filename):
+            try:
+                with open(filename, 'r') as cachefile:
+                    content = cachefile.read()
+                    cachefile.close()
+                detect_dict = chardet.detect(content)
+                confidence, encoding = detect_dict['confidence'], detect_dict['encoding']
+                lyrics = content.decode(encoding, 'ignore')
+                lyrics = lyrics.encode("utf-8", "replace")
+                print "got lyrics from cache"
+                self.current_source = "From cache file"
+                self.action_group.get_action("From cache file").set_active(True)
+                return lyrics
+            except:
+                print "error reading cache file"
+        return ""    
     
     def show_lyrics(self, artist, title, lyrics):
         if lyrics == "":
@@ -695,6 +742,9 @@ class lLyrics(GObject.Object, Peas.Activatable):
             self.action_group.get_action("SaveToCacheAction").set_sensitive(False)
         else:        
             self.action_group.get_action("SaveToCacheAction").set_sensitive(True)
+            lyrics, self.tags = engine.parse_lrc(lyrics)
+            # tmp = lrcParser(lyrics)
+            # (time_tag, clean_lyrics) = tmp.format()
         
         Gdk.threads_enter()
         
@@ -707,28 +757,58 @@ class lLyrics(GObject.Object, Peas.Activatable):
         
         Gdk.threads_leave()
         
+    def elapsed_changed(self, player, seconds):
+        if not self.tags or not self.edit_event.is_set():
+            return
     
-    
+        matching_tag = None
+        for tag in self.tags:
+            time, _ = tag
+            if time > seconds:
+                break
+            matching_tag = tag
+
+        if matching_tag is None or self.current_tag == matching_tag:
+            return
+
+        self.current_tag = matching_tag
+
+        Gdk.threads_enter()
+
+        # remove old tag
+        start, end = self.textbuffer.get_bounds()
+        self.textbuffer.remove_tag(self.sync_tag, start, end)
+
+        # highlight next line
+        line = self.tags.index(self.current_tag) + 1
+        start = self.textbuffer.get_iter_at_line(line)
+        end = start.copy()
+        end.forward_to_line_end()
+        self.textbuffer.apply_tag(self.sync_tag, start, end)
+        self.textview.scroll_to_iter(start, 0.1, False, 0, 0)
+
+        Gdk.threads_leave()
+
     def _search_meanings_thread(self, artist, title):
         link = self.get_songmeanings_link(artist, title)
         if link == "":
             dialog = Gtk.MessageDialog(None, 0, Gtk.MessageType.WARNING, 
                                        Gtk.ButtonsType.CLOSE, _("No song meanings found"))
             dialog.format_secondary_markup(_("You can try to search manually on") + " <a href=\"http://www.songmeanings.net\">www.songmeanings.net</a>")
-            
+
             Gdk.threads_enter()
             dialog.run()
             Gdk.threads_leave()
-            
+
             Gdk.threads_enter()
             dialog.destroy()
             Gdk.threads_leave()
         else:
             print "open songmeanings link: " + link
             webbrowser.open(link)
-            
-    
-    
+
+
+
     def get_songmeanings_link(self, artist, title):
         # format artist, e.g. "the strokes" -> "strokes, the"
         if re.match("the .*", artist) is not None:
