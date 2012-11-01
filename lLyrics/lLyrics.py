@@ -27,16 +27,13 @@ from gi.repository import Gtk
 from gi.repository import Pango
 from gi.repository import GdkPixbuf
 
-import ChartlyricsParser
-import LyricwikiParser
-import MetrolyricsParser
-import LetrasTerraParser
-import LyrdbParser
 import SogouParser
+import BaiduParser
+import ttPlayerParser
+import TuneWikiParser
 import chardet
 import glob
-from lrcParser import lrcParser
-import engine
+import lrcParser
 
 from Config import Config
 from Config import ConfigDialog
@@ -51,15 +48,13 @@ llyrics_ui = """
         <menu name="ViewMenu" action="View">
             <menuitem name="lLyrics" action="ToggleLyricSideBar" />
         </menu>
-        
+
         <menu name="lLyrics" action="lLyricsMenuAction">
             <menu name="ScanSource" action="ScanSourceAction">
-                <menuitem name="ScanLyricwiki" action="Lyricwiki.org"/>
-                <menuitem name="ScanTerra" action="Letras.terra.com.br"/>
-                <menuitem name="ScanMetrolyrics" action="Metrolyrics.com"/>
-                <menuitem name="ScanChartlyrics" action="Chartlyrics.com"/>
-                <menuitem name="ScanLyrdb" action="Lyrdb.com"/>
-                <menuitem name="ScanSogou" action="Sogou.com"/>
+                <menuitem name="ScanSogou" action="Sogou"/>
+                <menuitem name="QianQian" action="QianQian"/>
+                <menuitem name="Baidu" action="Baidu"/>
+                <menuitem name="TuneWiki" action="TuneWiki"/>
                 <separator/>
                 <menuitem name="FromCacheFile" action="From cache file"/>
                 <menuitem action="SelectNothing"/>
@@ -78,7 +73,7 @@ llyrics_ui = """
             <separator/>
             <menuitem name="SearchMeanings" action="SearchMeaningsAction"/>
         </menu>
-        
+
     </menubar>
     <toolbar name="ToolBar">
             <toolitem name="lLyrics" action="ToggleLyricSideBar"/>
@@ -86,12 +81,12 @@ llyrics_ui = """
 </ui>
 """
 
-LYRIC_TITLE_STRIP=["\(live[^\)]*\)", "\(acoustic[^\)]*\)", "\([^\)]*mix\)", "\([^\)]*version\)", "\([^\)]*edit\)", 
+LYRIC_TITLE_STRIP = ["\(live[^\)]*\)", "\(acoustic[^\)]*\)", "\([^\)]*mix\)", "\([^\)]*version\)", "\([^\)]*edit\)", 
                    "\(feat[^\)]*\)", "\([^\)]*bonus[^\)]*track[^\)]*\)"]
-LYRIC_TITLE_REPLACE=[("/", "-"), (" & ", " and ")]
-LYRIC_ARTIST_REPLACE=[("/", "-"), (" & ", " and ")]
+LYRIC_TITLE_REPLACE = [("/", "-"), (" & ", " and ")]
+LYRIC_ARTIST_REPLACE = [("/", "-"), (" & ", " and ")]
 
-LYRIC_SOURCES=["Lyricwiki.org", "Letras.terra.com.br", "Metrolyrics.com", "Chartlyrics.com", "Lyrdb.com", "Sogou.com"]
+LYRIC_SOURCES = ["Sogou", "QianQian", "Baidu", "TuneWiki"]
 
 STOCK_IMAGE = "stock-llyrics-button"
 
@@ -116,9 +111,7 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.uim = self.shell.props.ui_manager
 
         # Create dictionary which assigns sources to their corresponding modules
-        self.dict = dict({"Lyricwiki.org": LyricwikiParser, "Letras.terra.com.br": LetrasTerraParser,
-                         "Metrolyrics.com": MetrolyricsParser, "Chartlyrics.com": ChartlyricsParser,
-                         "Lyrdb.com": LyrdbParser, "Sogou.com": SogouParser})
+        self.dict = dict({"Sogou": SogouParser, "QianQian": ttPlayerParser, "Baidu": BaiduParser, "TuneWiki": TuneWikiParser})
 
         # Get the user preferences
         config = Config()
@@ -240,17 +233,16 @@ class lLyrics(GObject.Object, Peas.Activatable):
         source_action = Gtk.Action("ScanSourceAction", _("Source"), None, None)
         self.action_group.add_action(source_action)
 
-        scan_lyricwiki_action = ("Lyricwiki.org", None, "Lyricwiki.org", None, None)
-        scan_terra_action = ("Letras.terra.com.br", None, "Letras.terra.com.br", None, None)
-        scan_metrolyrics_action = ("Metrolyrics.com", None, "Metrolyrics.com", None, None)
-        scan_chartlyrics_action = ("Chartlyrics.com", None, "Chartlyrics.com", None, None)
-        scan_lyrdb_action = ("Lyrdb.com", None, "Lyrdb.com", None, None)
-        scan_sogou_action = ("Sogou.com", None, "Sogou.com", None, None)
+
+        scan_sogou_action = ("Sogou", None, "Sogou", None, None)
+        scan_qianqian_action = ("QianQian", None, "QianQian", None, None)
+        scan_baidu_action = ("Baidu", None, "Baidu", None, None)
+        scan_tunewiki_action = ("TuneWiki", None, "TuneWiki", None, None)
         scan_cache_action = ("From cache file", None, _("From cache file"), None, None)
         select_nothing_action = ("SelectNothing", None, "SelectNothing", None, None)
 
-        self.action_group.add_radio_actions([scan_lyricwiki_action, scan_terra_action, scan_metrolyrics_action,
-                                             scan_chartlyrics_action, scan_lyrdb_action, scan_sogou_action, scan_cache_action, select_nothing_action],
+        self.action_group.add_radio_actions([scan_sogou_action, scan_qianqian_action, scan_baidu_action, 
+                                             scan_tunewiki_action, scan_cache_action, select_nothing_action],
                                              -1, self.scan_source_action_callback, None)
 
         # This is a quite ugly hack. I couldn't find out how to unselect all radio actions,
@@ -307,21 +299,21 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.textview.set_pixels_above_lines(5)
         self.textview.set_pixels_below_lines(5)
         self.textview.set_wrap_mode(Gtk.WrapMode.WORD)
-                
+
         # create a ScrollView
         sw = Gtk.ScrolledWindow()
         sw.add(self.textview)
         sw.set_shadow_type(Gtk.ShadowType.IN)
-        
+
         # initialize a TextBuffer to store lyrics in
         self.textbuffer = Gtk.TextBuffer()
         self.textview.set_buffer(self.textbuffer)
-        
+
         # tag to style headers bold and underlined
-        self.tag = self.textbuffer.create_tag(None, underline=Pango.Underline.SINGLE, weight=600, 
-                                              pixels_above_lines=10, pixels_below_lines=20)
+        self.tag = self.textbuffer.create_tag(None, underline = Pango.Underline.SINGLE, weight = 600, 
+                                              pixels_above_lines = 10, pixels_below_lines = 20)
         # tag to highlight synchronized lyrics
-        self.sync_tag = self.textbuffer.create_tag(None, weight=600)
+        self.sync_tag = self.textbuffer.create_tag(None, weight = 600)
         # create save and cancel buttons for edited lyrics
         save_button = Gtk.Button.new_with_label(_("Save"))
         save_button.connect("clicked", self.save_button_callback)
@@ -330,7 +322,7 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.hbox = Gtk.HBox()
         self.hbox.pack_start(save_button, True, True, 3)
         self.hbox.pack_start(cancel_button, True, True, 3)
-        
+
         # pack everything into side pane
         self.vbox.pack_start(label, False, False, 0)
         self.vbox.pack_start(sw, True, True, 0)
@@ -340,9 +332,9 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.hbox.hide()
         self.vbox.set_size_request(200, -1)
         self.visible = False
-        
-        
-    
+
+
+
     def toggle_visibility (self, action):
         if not self.visible:
             self.shell.add_widget (self.vbox, RB.ShellUILocation.RIGHT_SIDEBAR, True, True)
@@ -742,7 +734,7 @@ class lLyrics(GObject.Object, Peas.Activatable):
             self.action_group.get_action("SaveToCacheAction").set_sensitive(False)
         else:        
             self.action_group.get_action("SaveToCacheAction").set_sensitive(True)
-            lyrics, self.tags = engine.parse_lrc(lyrics)
+            lyrics, self.tags = lrcParser.parse_lrc(lyrics)
             # tmp = lrcParser(lyrics)
             # (time_tag, clean_lyrics) = tmp.format()
         
