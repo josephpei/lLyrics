@@ -7,7 +7,7 @@ Rhythmbox ships with a lyrics plugin, that is more or less broken and doesn't in
 
 
 
-![Screenshot](http://www.dmo60.de/lLyricsScreenshot.png)
+![Screenshot](https://skydrive.live.com/#cid=29AF87A622071DCB&id=29AF87A622071DCB!345)
 
 
 
@@ -15,12 +15,10 @@ Rhythmbox ships with a lyrics plugin, that is more or less broken and doesn't in
 Lyrics sources
 ---------------
 
-  - Lyricwiki.org
-  - Letras.terra.com.br
-  - Metrolyrics.com
-  - Chartlyrics.com
-  - Lyrdb.com
-  - Sogou.com (provides synchronized lyrics which is not implemented yet)
+  - Sogou
+  - QianQian
+  - Baidu
+  - TuneWiki
 
 More may come in the future...
 
@@ -45,10 +43,9 @@ Note that Rhythmbox version 2.90 or higher is required to run lLyrics!
 Credits
 ---------------
 
-I was inspired by the awesome Songbird plugin [MLyrics](https://github.com/FreeleX/MLyrics).
 Thanks to all who contribute, report issues or help in any other way to make this plugin better.
 
-You will always find the latest version on [GitHub](https://github.com/dmo60/lLyrics).
+This work is heavily based on [dmo60's iLyrics](https://github.com/dmo60/lLyrics).
 Please report bugs, issues or feature requests there.
 
 Help with translations is always appreciated!
