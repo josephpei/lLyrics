@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 # Filename: engine_baidu.py
 
-import engine, re, urllib
+import engine
+import re
+import urllib2
 import chardet
+
 
 class Parser(engine.engine):
 
     def __init__(self, artist, title):
-        engine.engine.__init__(self, proxy = None, locale = "utf-8")
+        engine.engine.__init__(self, proxy=None, locale="utf-8")
         self.artist = artist
         self.title = title
         self.found = True
@@ -16,17 +19,16 @@ class Parser(engine.engine):
         self.lyrics = ""
         self.proxy = None
 
-
     def parse(self):
         url1 = 'http://music.baidu.com/search/lrc?key='
         url2_pre = '%s %s' % (self.title, self.artist)
-        url2 = urllib.quote_plus(url2_pre)
+        url2 = urllib2.quote(url2_pre)
         url = url1 + url2
 
         try:
-            file = urllib.urlopen(url, None, self.proxy)
-            source = file.read()
-            file.close()
+            f = urllib2.urlopen(url, None, 3)
+            source = f.read()
+            f.close()
         except IOError:
             return ""
         else:
@@ -39,7 +41,7 @@ class Parser(engine.engine):
                 detect_dict = chardet.detect(lyrics)
                 confidence, encoding = detect_dict['confidence'], detect_dict['encoding']
                 lyrics = lyrics.decode(encoding, 'ignore')
-                lyrics = lyrics.encode("utf-8")
+                lyrics = lyrics.encode("utf-8", "replace")
                 return lyrics
             else:
                 return ""

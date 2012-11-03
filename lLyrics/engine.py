@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 
-import urllib, re, os, sys
+import urllib2
+import re
 
 
 def order_results(results, artist, title):
@@ -12,8 +13,8 @@ def order_results(results, artist, title):
 
 
 def cmp_result(result, comp):
-    value = similarity(result[0],comp[0])    #artist
-    value += similarity(result[1],comp[1])    #title
+    value = similarity(result[0], comp[0])  # artist
+    value += similarity(result[1], comp[1])  # title
     value = value / 2
     return value
 
@@ -33,14 +34,14 @@ def tokenize(string):
 
 
 def valid_lrc(lrc):
-    partial = "".join( (i for i in lrc if(ord(i) < 128 and ord(i) != 0)))
+    partial = "".join((i for i in lrc if(ord(i) < 128 and ord(i) != 0)))
     return bool(re.search('\[\d+:\d+.*?\]', partial))
 
 
 class engine:
 
-    def __init__(self, proxy = None, locale = "utf-8", check = True):
-        if locale == None:
+    def __init__(self, proxy=None, locale="utf-8", check=True):
+        if locale is None:
             locale = "utf-8"
         self.locale = locale
         self.proxy = proxy
@@ -52,21 +53,21 @@ class engine:
 
     def downIt(self, url):
         try:
-            ff = urllib.urlopen(url, None, self.proxy)
+            ff = urllib2.urlopen(url)
             original_lrc = re.sub('<br/>', '\n', ff.read())
             ff.close()
         except IOError:
             return (None, True)
         else:
             if(self.need_check):
-                if(self.net_encoder == None or self.net_encoder.startswith("utf-16") or self.net_encoder.startswith("utf-32")):
+                if(self.net_encoder is None or self.net_encoder.startswith("utf-16") or self.net_encoder.startswith("utf-32")):
                     if not self.valid_lrc(original_lrc):
                         original_lrc = None
                     elif(not re.search('\[\d+:\d+.*?\]', original_lrc)):
                         original_lrc = None
             return (original_lrc, False)
 
-    def order_results(self,results, artist, title):
+    def order_results(self, results, artist, title):
         return order_results(results, artist, title)
 
     def valid_lrc(self, lrc):

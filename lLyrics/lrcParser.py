@@ -5,34 +5,45 @@
 
 import re
 
-def parse_lrc(data):
-    tag_regex = "(\[\d+\:\d+\.\d*])"
-    match = re.search(tag_regex, data)
 
-    # no tags
-    if match is None:
+def parse_lrc(data):
+    offset = 0
+    offsetList = re.search('\[offset:(.*?)\]', data)
+    if(offsetList):
+        try:
+            offset = int(offsetList.group(1) / 1000)
+        except:
+            offset = 0
+    else:
+        offset = 0
+
+    origin = re.findall('\[\d+:\d+.*?\n|\[\d+:\d+.*?$', data)
+    if origin is None:
         return (data, None)
 
-    data = data[match.start():]
-    splitted = re.split(tag_regex, data)[1:]
+    splitted = []
+    for i in origin:
+        line_text = i.split(']')[-1]
+        for j in re.findall('\[\d+:\d+.*?\]', i):
+            splitted.append(j)
+            splitted.append(line_text)
 
-    tags = []
+    dd = {}
     lyrics = ''
     for i in range(len(splitted)):
         if i % 2 == 0:
-            # tag
-            tags.append((time_to_seconds(splitted[i]), splitted[i+1]))
-        else:
-            # lyrics
-            lyrics += splitted[i]
+            dd[time_to_seconds(splitted[i], offset)] = splitted[i + 1]
 
+    tags = sorted(dd.items(), key=lambda d: d[0])
+    for k, v in tags:
+        lyrics += v
     return (lyrics, tags)
 
 
-def time_to_seconds(time):
+def time_to_seconds(time, offset):
     time = time[1:-1].replace(":", ".")
     t = time.split(".")
-    return 60 * int(t[0]) + int(t[1])
+    return 60 * int(t[0]) + int(t[1]) + offset
 
 
 class lrcParser:
@@ -65,8 +76,8 @@ class lrcParser:
                     text1.append(j + line_text)
             text2 = []
             for k in text1:
-                pp = k.split(']')[0][1:]    #time tag, no ']' or '['
-                qq = k.split(']')[1].strip()    #line of lyrics
+                pp = k.split(']')[0][1:]  # time tag, no ']' or '['
+                qq = k.split(']')[1].strip()  # line of lyrics
                 qq = re.sub('<|>', '', qq)
 
                 searchGroup = re.search('(\d+):(\d+)(.*)', pp)
