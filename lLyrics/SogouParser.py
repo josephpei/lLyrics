@@ -30,12 +30,12 @@ class Parser(engine.engine):
             b = urllib2.unquote(i.split('=')[-1])
             c = unicode(b, 'gb18030').encode('utf8')
             title, artist = c.split('-', 1)
-            wList.append([artist, title, i])
+            wList.append([artist, title, ' ', i])
         return wList
 
-    def request(self, artist, title):
+    def request(self):
         url1 = 'http://mp3.sogou.com/lyric.so?query='
-        url2_pre = '%s %s' % (self.changeUrlToGb(title), self.changeUrlToGb(artist))
+        url2_pre = '%s %s' % (self.changeUrlToGb(self.title), self.changeUrlToGb(self.artist))
         url2 = urllib2.quote(url2_pre)
         url = url1 + url2
 
@@ -56,11 +56,11 @@ class Parser(engine.engine):
                 return (lrcList, False)
 
     def parse(self):
-        (lrcList, flag) = self.request(self.artist, self.title)
+        (lrcList, flag) = self.request()
         if flag == True or lrcList is None:
             return ""
         else:
-            lrcUrl = lrcList[0][2]
+            lrcUrl = lrcList[0][3]
             print lrcUrl
             lyrics, check = self.downIt(lrcUrl)
             detect_dict = chardet.detect(lyrics)

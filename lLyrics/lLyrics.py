@@ -37,6 +37,7 @@ import lrcParser
 
 from Config import Config
 from Config import ConfigDialog
+from DownLrcDlg import DownLrcDlg
 
 import gettext
 gettext.install('lLyrics', os.path.dirname(__file__) + "/locale/")
@@ -51,9 +52,9 @@ llyrics_ui = """
 
         <menu name="lLyrics" action="lLyricsMenuAction">
             <menu name="ScanSource" action="ScanSourceAction">
-                <menuitem name="ScanSogou" action="Sogou"/>
                 <menuitem name="QianQian" action="QianQian"/>
                 <menuitem name="Baidu" action="Baidu"/>
+                <menuitem name="Sogou" action="Sogou"/>
                 <menuitem name="TuneWiki" action="TuneWiki"/>
                 <separator/>
                 <menuitem name="FromCacheFile" action="From cache file"/>
@@ -86,7 +87,7 @@ LYRIC_TITLE_STRIP = ["\(live[^\)]*\)", "\(acoustic[^\)]*\)", "\([^\)]*mix\)", "\
 LYRIC_TITLE_REPLACE = [("/", "-"), (" & ", " and ")]
 LYRIC_ARTIST_REPLACE = [("/", "-"), (" & ", " and ")]
 
-LYRIC_SOURCES = ["Sogou", "QianQian", "Baidu", "TuneWiki"]
+LYRIC_SOURCES = ["QianQian", "Baidu", "Sogou", "TuneWiki"]
 
 STOCK_IMAGE = "stock-llyrics-button"
 
@@ -107,7 +108,7 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.uim = self.shell.props.ui_manager
 
         # Create dictionary which assigns sources to their corresponding modules
-        self.dict = dict({"Sogou": SogouParser, "QianQian": ttPlayerParser, "Baidu": BaiduParser, "TuneWiki": TuneWikiParser})
+        self.dict = dict({"QianQian": ttPlayerParser, "Baidu": BaiduParser, "Sogou": SogouParser, "TuneWiki": TuneWikiParser})
 
         # Get the user preferences
         config = Config()
@@ -223,14 +224,14 @@ class lLyrics(GObject.Object, Peas.Activatable):
         source_action = Gtk.Action("ScanSourceAction", _("Source"), None, None)
         self.action_group.add_action(source_action)
 
+        scan_baidu_action = ("Baidu", None, "Baidu", None, None)
         scan_sogou_action = ("Sogou", None, "Sogou", None, None)
         scan_qianqian_action = ("QianQian", None, "QianQian", None, None)
-        scan_baidu_action = ("Baidu", None, "Baidu", None, None)
         scan_tunewiki_action = ("TuneWiki", None, "TuneWiki", None, None)
         scan_cache_action = ("From cache file", None, _("From cache file"), None, None)
         select_nothing_action = ("SelectNothing", None, "SelectNothing", None, None)
 
-        self.action_group.add_radio_actions([scan_sogou_action, scan_qianqian_action, scan_baidu_action,
+        self.action_group.add_radio_actions([scan_qianqian_action, scan_baidu_action, scan_sogou_action,
                                              scan_tunewiki_action, scan_cache_action, select_nothing_action],
                                             -1, self.scan_source_action_callback, None)
 
@@ -640,6 +641,25 @@ class lLyrics(GObject.Object, Peas.Activatable):
 
         parser = self.dict[source].Parser(artist, title)
         lyrics = parser.parse()
+        # (lrcList, flag) = parser.request()
+        # if flag == True or lrcList is None:
+        #     lyrics = ""
+        # else:
+        #     dialog = DownLrcDlg(None, artist, title, 'Baidu', lrcList)
+        #     Gdk.threads_enter()
+        #     # dialog.show()
+        #     response = dialog.run()
+        #     if response == Gtk.ResponseType.OK:
+        #         url = dialog.get_lrc_url()
+        #         (lyrics, haha) = parser.downIt(url)
+        #         print "The OK button was clicked"
+        #     elif response == Gtk.ResponseType.CANCEL:
+        #         print "The Cancel button was clicked"
+        #     Gdk.threads_leave()
+
+        #     Gdk.threads_enter()
+        #     dialog.destroy()
+        #     Gdk.threads_leave()
 
         if lyrics != "":
             print "got lyrics from source"

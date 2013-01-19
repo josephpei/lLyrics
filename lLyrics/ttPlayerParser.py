@@ -41,12 +41,15 @@ class Parser(engine.engine):
             except:
                 pass
             else:
-                url = '%s.com/dll/lyricsvr.dll?dl?Id=%d&Code=%d&uid=01&mac=%012x' % (self.network, int(_id), ttpClient.CodeFunc(int(_id), (_artist + _title)), random.randint(0, 0xFFFFFFFFFFFF))
-                b.append([_artist, _title, url])
+                url = '%s.com/dll/lyricsvr.dll?dl?Id=%d&Code=%d&uid=01&mac=%012x' % (self.network,
+                        int(_id), ttpClient.CodeFunc(int(_id), (_artist + _title)), random.randint(0, 0xFFFFFFFFFFFF))
+                b.append([_artist, _title, ' ', url])
         return b
 
-    def request(self, artist, title):
-        url = '%s.com/dll/lyricsvr.dll?sh?Artist=%s&Title=%s&Flags=0' % (self.network, ttpClient.EncodeArtTit(unicode(artist, self.locale).replace(u' ', '').lower()), ttpClient.EncodeArtTit(unicode(title, self.locale).replace(u' ', '').lower()))
+    def request(self):
+        url = '%s.com/dll/lyricsvr.dll?sh?Artist=%s&Title=%s&Flags=0' % (self.network,
+                ttpClient.EncodeArtTit(unicode(self.artist, self.locale).replace(u' ', '').lower()),
+                ttpClient.EncodeArtTit(unicode(self.title, self.locale).replace(u' ', '').lower()))
         #print url
         try:
             file = urllib2.urlopen(url, None, 3)
@@ -63,9 +66,9 @@ class Parser(engine.engine):
                 return (lrcList, False)
 
     def parse(self):
-        lrclist, check1 = self.request(self.artist, self.title)
+        lrclist, check1 = self.request()
         if lrclist is not None:
-            lyrics, check2 = self.downIt(lrclist[0][2])
+            lyrics, check2 = self.downIt(lrclist[0][3])
             detect_dict = chardet.detect(lyrics)
             confidence, encoding = detect_dict['confidence'], detect_dict['encoding']
             lyrics = lyrics.decode(encoding, 'ignore')

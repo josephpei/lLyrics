@@ -3,15 +3,15 @@
 	<schema id="org.gnome.rhythmbox.plugins.llyrics" path="/org/gnome/rhythmbox/plugins/llyrics/">
 		
 		<key name="active-sources" type="as">
-			<default>['Sogou', 'QianQian', 'Baidu', 'TuneWiki']</default>
+			<default>['QianQian', 'Baidu', 'Sogou', 'TuneWiki']</default>
 			<summary>List of lyrics sources to be scanned</summary>
-			<description>Possible values are: 'Sogou', 'QianQian', 'Baidu', 'TuneWiki'</description>
+			<description>Possible values are: 'QianQian', 'Baidu', 'Sogou', 'TuneWiki'</description>
 		</key>
 		
 		<key name="scanning-order" type="as">
-			<default>['Sogou', 'QianQian', 'Baidu', 'TuneWiki']</default>
+			<default>['QianQian', 'Baidu', 'Sogou', 'TuneWiki']</default>
 			<summary>Sources are scanned in this order</summary>
-			<description>Possible values are: 'Sogou', 'QianQian', 'Baidu', 'TuneWiki'</description>
+			<description>Possible values are: 'QianQian', 'Baidu', 'Sogou', 'TuneWiki'</description>
 		</key>
 		
 		<key name="cache-lyrics" type="b">

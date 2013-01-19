@@ -6,6 +6,11 @@ import urllib2
 import re
 
 
+def remove_html_tag(data):
+    p = re.compile(r'<.*?>')
+    return p.sub('', data)
+
+
 def order_results(results, artist, title):
     comp = [artist, title]
     results = map(lambda x: x[1], reversed(sorted(((cmp_result(comp, i), i) for i in results))))
