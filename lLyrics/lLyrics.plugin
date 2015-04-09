@@ -1,9 +1,0 @@
-[Plugin]
-Loader=python
-Module=lLyrics
-IAge=2
-Name=lLyrics
-Description=Displays lyrics in the right sidebar
-Description[de]=Zeigt Liedtexte in der rechten Seitenleiste an
-Authors=Timo Loewe <timoloewe91@gmail.com>
-Website=https://github.com/dmo60/lLyrics
