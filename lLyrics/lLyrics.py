@@ -17,6 +17,7 @@ import threading
 import webbrowser
 import sys
 import unicodedata
+import glob
 
 from threading import Thread
 
@@ -29,6 +30,7 @@ from gi.repository import Pango
 from gi.repository import GdkPixbuf
 from gi.repository import GLib
 
+import BaiduParser
 import ChartlyricsParser
 import LyricwikiParser
 import MetrolyricsParser
@@ -98,7 +100,7 @@ LYRICS_TITLE_STRIP=["\(live[^\)]*\)", "\(acoustic[^\)]*\)", "\([^\)]*mix\)", "\(
 LYRICS_TITLE_REPLACE=[("/", "-"), (" & ", " and ")]
 LYRICS_ARTIST_REPLACE=[("/", "-"), (" & ", " and ")]
 
-LYRICS_SOURCES=["Lyricwiki.org", "Letras.terra.com.br", "Metrolyrics.com", "AZLyrics.com", "Lyricsnmusic.com", "Lyricsmania.com", 
+LYRICS_SOURCES=["Baidu.com", "Lyricwiki.org", "Letras.terra.com.br", "Metrolyrics.com", "AZLyrics.com", "Lyricsnmusic.com", "Lyricsmania.com", 
                "Vagalume.com.br", "Rapgenius.com", "Darklyrics.com", "Chartlyrics.com", "Leoslyrics.com", "Lyrdb.com", "External"]
 
 
@@ -123,7 +125,7 @@ class lLyrics(GObject.Object, Peas.Activatable):
         self.appshell = ApplicationShell(self.shell)
                 
         # Create dictionary which assigns sources to their corresponding modules
-        self.dict = dict({"Lyricwiki.org": LyricwikiParser, "Letras.terra.com.br": LetrasTerraParser,
+        self.dict = dict({"Baidu.com": BaiduParser, "Lyricwiki.org": LyricwikiParser, "Letras.terra.com.br": LetrasTerraParser,
                          "Metrolyrics.com": MetrolyricsParser, "AZLyrics.com": AZLyricsParser,
                          "Lyricsmania.com": LyricsmaniaParser, "Chartlyrics.com": ChartlyricsParser,
                          "Lyrdb.com": LyrdbParser, "Leoslyrics.com": LeoslyricsParser, 
@@ -558,11 +560,12 @@ class lLyrics(GObject.Object, Peas.Activatable):
     
     
     def build_cache_path(self, artist, title):
-        artist_folder = os.path.join(self.lyrics_folder, artist[:128])
-        if not os.path.exists (artist_folder):
-            os.mkdir (artist_folder)
+        #artist_folder = os.path.join(self.lyrics_folder, artist[:128])
+        #if not os.path.exists (artist_folder):
+            #os.mkdir (artist_folder)
     
-        return os.path.join(artist_folder, title[:128] + '.lyric')
+        return os.path.join(self.lyrics_folder, artist + ' - ' + title[:128] + '.lrc')
+        #return os.path.join(artist_folder, title[:128] + '.lyric')
     
     
     
