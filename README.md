@@ -5,7 +5,7 @@ lLyrics is a plugin for [Rhythmbox](http://projects.gnome.org/rhythmbox/), which
 
 It is intended as a replacement of the built-in lyrics plugin of Rhythmbox with more features, better UI integration and more lyrics engines.
 
-
+It is based on [dmo60's work](https://github.com/josephpei/lLyrics).
 
 ![Screenshot](http://www.dmo60.de/lLyricsScreenshot.png)
 
@@ -15,6 +15,7 @@ It is intended as a replacement of the built-in lyrics plugin of Rhythmbox with 
 Lyrics sources
 ---------------
 
+  - Baidu.com
   - Lyricwiki.org
   - Letras.terra.com.br
   - Vagalume.com.br
@@ -50,16 +51,6 @@ lLyrics can be run without the need of any additional packages, but it is recomm
 
 Installation
 ---------------
-
-#### Ubuntu & derivates: PPA ####
-
-In Ubuntu based distribution, you can install this plugin via [this PPA by fossfreedom](https://launchpad.net/~fossfreedom/+archive/rhythmbox-plugins).
-
-#### Archlinux: AUR ####
-
-Archlinux user can install the plugin via [this AUR package by Bersam](https://aur.archlinux.org/packages/rhythmbox-llyrics-git/).
-
-#### Manual installation ####
 
 	1.) Press the "Download ZIP" button and extract the .zip file.
 	
@@ -98,11 +89,7 @@ Features
 Credits
 ---------------
 
-I was inspired by the awesome Songbird plugin [MLyrics](https://github.com/FreeleX/MLyrics).
-Thanks to all who contribute, report issues or help in any other way to make this plugin better.
-
-You will always find the latest version on [GitHub](https://github.com/dmo60/lLyrics).
-Please report bugs, issues or feature requests there.
+Thanks for the great work of [dmo60](https://github.com/dmo60/lLyrics).
 
 Help with translations is always appreciated!
 
