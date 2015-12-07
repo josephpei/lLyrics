@@ -5,9 +5,9 @@ lLyrics is a plugin for [Rhythmbox](http://projects.gnome.org/rhythmbox/), which
 
 It is intended as a replacement of the built-in lyrics plugin of Rhythmbox with more features, better UI integration and more lyrics engines.
 
-It is based on [dmo60's work](https://github.com/josephpei/lLyrics).
+It is based on [dmo60's work](https://github.com/dmo60/lLyrics).
 
-![Screenshot](http://www.dmo60.de/lLyricsScreenshot.png)
+![Screenshot](https://github.com/josephpei/lLyrics/blob/master/screenshot/lLyrics.png)
 
 
 
@@ -15,6 +15,7 @@ It is based on [dmo60's work](https://github.com/josephpei/lLyrics).
 Lyrics sources
 ---------------
 
+  - Kuwo.cn
   - Baidu.com
   - Lyricwiki.org
   - Letras.terra.com.br
